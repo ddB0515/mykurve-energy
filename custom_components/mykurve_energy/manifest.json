@@ -7,7 +7,7 @@
   "documentation": "https://github.com/ddB0515/mykurve-energy",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "version": "1.1.0",
-  "requirements": ["mykurve==0.0.5"],
+  "version": "1.1.1",
+  "requirements": ["mykurve==0.0.6"],
   "loggers": ["custom_components.mykurve_energy"]
 }
