@@ -46,6 +46,33 @@ ENERGY_METER_SENSOR_TYPES = (
         native_unit_of_measurement="GBP",
         value_fn=lambda res: res.tariffHistory.tariffInForceNow.rate,
     ),
+    MyKurveSensorEntityDescription(
+        key=f"{DOMAIN}_remaining_balance_gbp",
+        icon="mdi:cash",
+        name="Remaining balance",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="GBP",
+        state_class=SensorStateClass.TOTAL,
+        value_fn=lambda res: res.combinedBalance,
+    ),
+    MyKurveSensorEntityDescription(
+        key=f"{DOMAIN}_todays_usage_kwh",
+        icon="mdi:lightning-bolt",
+        name="Today's usage",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda res: res.todaysUsage,
+    ),
+    MyKurveSensorEntityDescription(
+        key=f"{DOMAIN}_todays_usage_cost_gbp",
+        icon="mdi:cash-clock",
+        name="Today's usage cost",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="GBP",
+        state_class=SensorStateClass.TOTAL,
+        value_fn=lambda res: res.todaysUsageCost,
+    ),
 )
 
 
