@@ -13,7 +13,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 
 from mykurve import MyKurveApi
-from .const import CONF_ACC_NUMBER, CONF_TOKEN_EXPIRY, DOMAIN
+from .const import CONF_ACC_NUMBER, CONF_MFA_SECRET, CONF_TOKEN_EXPIRY, DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [Platform.SENSOR]
@@ -62,7 +62,8 @@ class MyKurveAuth:
         _LOGGER.debug("_update_token")
         username = self._entry.data[CONF_USERNAME]
         password = self._entry.data[CONF_PASSWORD]
-        token = await self._api.get_token(username, password)
+        mfa_secret = self._entry.data.get(CONF_MFA_SECRET) or None
+        token = await self._api.get_token(username, password, mfa_secret=mfa_secret)
         account = await self._api.get_accounts(token.access_token)
         account_no = account.accounts[0].accountNumber
         expire_time = datetime.now().timestamp() + token.expires_in

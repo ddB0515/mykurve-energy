@@ -5,13 +5,18 @@
         "title": "MyKurve Login Credentials",
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
-          "password": "[%key:common::config_flow::data::password%]"
+          "password": "[%key:common::config_flow::data::password%]",
+          "mfa_secret": "2FA secret (only if 2FA is enabled)"
+        },
+        "data_description": {
+          "mfa_secret": "The base32 secret shown when you set up 2FA on your MyKurve account. Leave blank if 2FA is not enabled."
         }
       }
     },
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "mfa_required": "This account requires 2FA. Enter your 2FA secret to continue.",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "abort": {

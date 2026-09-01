@@ -13,8 +13,9 @@ from homeassistant.const import (
 )
 from homeassistant.exceptions import HomeAssistantError
 from mykurve import MyKurveApi
+from mykurve.exceptions import AuthenticationFailed, MfaCodeRequired, MyKurveApiException
 
-from .const import DOMAIN
+from .const import CONF_MFA_SECRET, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Optional(CONF_MFA_SECRET): str,
     }
 )
 
@@ -36,11 +38,19 @@ class MyKurveConfigFlow(ConfigFlow, domain=DOMAIN):
 
         try:
             async with asyncio.timeout(30):
-                token = await api.get_token(user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+                token = await api.get_token(
+                    user_input[CONF_USERNAME],
+                    user_input[CONF_PASSWORD],
+                    mfa_secret=user_input.get(CONF_MFA_SECRET) or None,
+                )
         except TimeoutError as err:
             raise CannotConnect from err
-        except Exception:
-            raise ValueError
+        except AuthenticationFailed as err:
+            raise InvalidAuth from err
+        except MfaCodeRequired as err:
+            raise MfaRequired from err
+        except MyKurveApiException as err:
+            raise CannotConnect from err
 
         return token is not None
 
@@ -56,6 +66,8 @@ class MyKurveConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
                 errors["base"] = "invalid_auth"
+            except MfaRequired:
+                errors["base"] = "mfa_required"
             except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
@@ -81,3 +93,7 @@ class CannotConnect(HomeAssistantError):
 
 class InvalidAuth(HomeAssistantError):
     """Error to indicate there is invalid auth."""
+
+
+class MfaRequired(HomeAssistantError):
+    """Error to indicate the account needs a 2FA secret to complete login."""
