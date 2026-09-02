@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from mykurve import MyKurveApi
-from mykurve.data_classes import Dashboard
+from mykurve.data_classes import ConsumptionGraph, Dashboard, TimeRange
 
 from . import MyKurveAuth
 from .const import DOMAIN, CONF_ACC_NUMBER
@@ -75,6 +75,32 @@ ENERGY_METER_SENSOR_TYPES = (
     ),
 )
 
+@dataclass(frozen=True, kw_only=True)
+class MyKurveConsumptionSensorEntityDescription(SensorEntityDescription):
+    """MyKurve Energy monthly consumption sensor description."""
+    value_fn: Callable[[ConsumptionGraph], StateType | datetime]
+
+MONTHLY_CONSUMPTION_SENSOR_TYPES = (
+    MyKurveConsumptionSensorEntityDescription(
+        key=f"{DOMAIN}_monthly_consumption_kwh",
+        icon="mdi:lightning-bolt",
+        name="Monthly usage",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value_fn=lambda res: res.consumptionMeter.totalPagedConsumptionValue,
+    ),
+    MyKurveConsumptionSensorEntityDescription(
+        key=f"{DOMAIN}_monthly_consumption_cost_gbp",
+        icon="mdi:cash-clock",
+        name="Monthly usage cost",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="GBP",
+        state_class=SensorStateClass.TOTAL,
+        value_fn=lambda res: res.consumptionMeter.totalPagedConsumptionCost,
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
@@ -85,6 +111,11 @@ async def async_setup_entry(
     async_add_entities(
         (MyKurveSensor(myKurveAuth, entry, description)
         for description in ENERGY_METER_SENSOR_TYPES),
+        True
+    )
+    async_add_entities(
+        (MyKurveConsumptionSensor(myKurveAuth, entry, description)
+        for description in MONTHLY_CONSUMPTION_SENSOR_TYPES),
         True
     )
 
@@ -125,3 +156,42 @@ class MyKurveSensor(SensorEntity):
     def native_value(self) -> StateType | datetime:
         """Return the state of the sensor."""
         return self.entity_description.value_fn(self.dashboard)
+
+
+class MyKurveConsumptionSensor(SensorEntity):
+    """Entity object for MyKurve Energy monthly consumption sensor"""
+
+    entity_description: MyKurveConsumptionSensorEntityDescription
+
+    def __init__(
+        self,
+        mykurveauth: MyKurveAuth,
+        entry: ConfigEntry,
+        description: MyKurveConsumptionSensorEntityDescription,
+    ) -> None:
+        self.consumption = None
+        self.mykurve_auth = mykurveauth
+        self.api = MyKurveApi()
+        self.entry = entry
+
+        """Set up the sensor with the initial values."""
+        self._attr_unique_id = description.key
+        self._attr_name = description.name
+        self.entity_description = description
+
+    async def async_update(self) -> None:
+        """Get the MyKurve Energy monthly consumption data from the web service"""
+
+        async with asyncio.timeout(30):
+            await self.mykurve_auth.async_get_access_token()
+            token = self.entry.data[CONF_API_TOKEN]
+            acc_number = self.entry.data[CONF_ACC_NUMBER]
+            _LOGGER.debug(f"Updated monthly consumption for account: {acc_number}")
+            self.consumption = await self.api.get_consumption_graph(
+                token, acc_number, TimeRange.MONTH, 0
+            )
+
+    @property
+    def native_value(self) -> StateType | datetime:
+        """Return the state of the sensor."""
+        return self.entity_description.value_fn(self.consumption)
